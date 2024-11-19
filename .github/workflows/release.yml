@@ -1,0 +1,51 @@
+name: Build and Release .vsix
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-release:
+    name: Build and Release .vsix
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build VSIX package
+        id: build_vsix
+        run: |
+          npm install -g @vscode/vsce
+          vsce package
+          echo "vsix_path=$(ls *.vsix)" >> $GITHUB_OUTPUT
+
+      - name: Create Release on GitHub
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ github.run_number }}
+          release_name: "Release v${{ github.run_number }}"
+          draft: false
+          prerelease: false
+
+      - name: Upload VSIX to Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ steps.build_vsix.outputs.vsix_path }}
+          asset_name: ${{ steps.build_vsix.outputs.vsix_path }}
+          asset_content_type: application/octet-stream
